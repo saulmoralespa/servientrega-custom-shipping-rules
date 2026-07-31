@@ -39,6 +39,8 @@ Los ajustes se almacenan dentro de la opción `woocommerce_servientrega_shipping
 | `servientrega_custom_fixed_cost_value` | `float` | Valor del costo fijo en COP |
 | `servientrega_custom_enable_free_shipping` | `yes`/`no` | Habilitar envío gratis |
 | `servientrega_custom_free_shipping_threshold` | `float` | Monto mínimo para envío gratis en COP |
+| `servientrega_custom_free_shipping_start_date` | `string` (`Y-m-d`) | Fecha de inicio del rango de envío gratis (vacío = sin límite inicial) |
+| `servientrega_custom_free_shipping_end_date` | `string` (`Y-m-d`) | Fecha de fin del rango de envío gratis (vacío = sin límite final) |
 
 ## Página de configuración
 
@@ -75,7 +77,7 @@ Filtro de cortocircuito del plugin principal. Se dispara **antes** de la llamada
 ## Lógica de prioridad
 
 ```
-1. SI envío gratis habilitado Y subtotal >= threshold
+1. SI envío gratis habilitado Y fecha actual dentro del rango (si hay fechas configuradas) Y subtotal >= threshold
    → Retornar ValorTotal = 0
 
 2. SI costo fijo habilitado Y valor > 0
@@ -87,6 +89,8 @@ Filtro de cortocircuito del plugin principal. Se dispara **antes** de la llamada
 
 **Nota:** El envío gratis siempre tiene prioridad sobre el costo fijo.
 
+**Rango de fechas:** Si `servientrega_custom_free_shipping_start_date` y/o `servientrega_custom_free_shipping_end_date` están vacíos, ese límite no aplica. La comparación es inclusiva y usa la zona horaria de WordPress (`wp_date('Y-m-d')`).
+
 ## Funciones principales
 
 | Función | Propósito |
@@ -96,6 +100,8 @@ Filtro de cortocircuito del plugin principal. Se dispara **antes** de la llamada
 | `servientrega_custom_rules_add_tab_slug()` | Registra slug de tab |
 | `servientrega_custom_rules_add_tab_label()` | Registra label de tab |
 | `servientrega_custom_rules_tab_file()` | Retorna ruta del archivo de la tab |
+| `servientrega_custom_rules_is_free_shipping_date_active()` | Verifica si la fecha actual está dentro del rango configurado |
+| `servientrega_custom_rules_validate_date()` | Valida formato `Y-m-d` al guardar (en `includes/admin/custom_rules.php`) |
 | `servientrega_custom_rules_calculate()` | Lógica del filtro de cortocircuito |
 
 ## Convenciones de código

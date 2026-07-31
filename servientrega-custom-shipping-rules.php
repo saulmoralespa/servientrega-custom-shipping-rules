@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Servientrega Custom Shipping Rules
  * Description: Define costo fijo de envío y reglas de envío gratis para Servientrega WooCommerce
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Saúl Morales Pacheco
  * Author URI: https://saulmoralespa.com
  * License: GNU General Public License v3.0
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
 }
 
 if (!defined('SERVIENTREGA_CUSTOM_RULES_VERSION')) {
-    define('SERVIENTREGA_CUSTOM_RULES_VERSION', '1.0.0');
+    define('SERVIENTREGA_CUSTOM_RULES_VERSION', '1.0.1');
 }
 
 if (!defined('SERVIENTREGA_CUSTOM_RULES_PATH')) {
@@ -111,6 +111,25 @@ function servientrega_custom_rules_tab_file(string $path, string $tab): string
 }
 
 /**
+ * Verifica si la fecha actual está dentro del rango de envío gratis.
+ * Fechas vacías no restringen el rango.
+ */
+function servientrega_custom_rules_is_free_shipping_date_active(string $start_date, string $end_date): bool
+{
+    $today = wp_date('Y-m-d');
+
+    if ($start_date !== '' && $today < $start_date) {
+        return false;
+    }
+
+    if ($end_date !== '' && $today > $end_date) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Lógica principal: determina si aplicar costo fijo o envío gratis
  *
  * @param mixed $pre_response Respuesta previa (null por defecto)
@@ -126,6 +145,8 @@ function servientrega_custom_rules_calculate($pre_response, array $params, array
 
     $enable_free_shipping    = ($wc_settings['servientrega_custom_enable_free_shipping'] ?? 'no') === 'yes';
     $free_shipping_threshold = (float) ($wc_settings['servientrega_custom_free_shipping_threshold'] ?? 0);
+    $free_shipping_start_date = $wc_settings['servientrega_custom_free_shipping_start_date'] ?? '';
+    $free_shipping_end_date   = $wc_settings['servientrega_custom_free_shipping_end_date'] ?? '';
     $enable_fixed_cost       = ($wc_settings['servientrega_custom_enable_fixed_cost'] ?? 'no') === 'yes';
     $fixed_cost_value        = (float) ($wc_settings['servientrega_custom_fixed_cost_value'] ?? 0);
 
@@ -136,7 +157,8 @@ function servientrega_custom_rules_calculate($pre_response, array $params, array
     }
 
     // Regla 1: Envío gratis (tiene prioridad)
-    if ($enable_free_shipping && $free_shipping_threshold > 0 && $cart_subtotal >= $free_shipping_threshold) {
+    $is_free_shipping_date_active = servientrega_custom_rules_is_free_shipping_date_active($free_shipping_start_date, $free_shipping_end_date);
+    if ($enable_free_shipping && $is_free_shipping_date_active && $free_shipping_threshold > 0 && $cart_subtotal >= $free_shipping_threshold) {
         return (object) ['ValorTotal' => 0];
     }
 

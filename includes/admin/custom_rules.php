@@ -4,6 +4,25 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/**
+ * Valida que una fecha tenga formato Y-m-d y sea válida.
+ * Retorna la fecha si es válida, o cadena vacía en caso contrario.
+ */
+function servientrega_custom_rules_validate_date(string $date): string
+{
+    if ($date === '') {
+        return '';
+    }
+
+    $timestamp = strtotime($date);
+    if ($timestamp === false) {
+        return '';
+    }
+
+    $validated = date('Y-m-d', $timestamp);
+    return $validated === $date ? $validated : '';
+}
+
 $wc_settings = get_option('woocommerce_servientrega_shipping_settings');
 $success_message = '';
 
@@ -17,6 +36,11 @@ if (isset($_POST['save'])) {
     $wc_settings['servientrega_custom_enable_free_shipping'] = isset($_POST['servientrega_custom_enable_free_shipping']) ? 'yes' : 'no';
     $wc_settings['servientrega_custom_free_shipping_threshold'] = sanitize_text_field($_POST['servientrega_custom_free_shipping_threshold'] ?? '');
 
+    $start_date = sanitize_text_field($_POST['servientrega_custom_free_shipping_start_date'] ?? '');
+    $end_date = sanitize_text_field($_POST['servientrega_custom_free_shipping_end_date'] ?? '');
+    $wc_settings['servientrega_custom_free_shipping_start_date'] = servientrega_custom_rules_validate_date($start_date);
+    $wc_settings['servientrega_custom_free_shipping_end_date'] = servientrega_custom_rules_validate_date($end_date);
+
     update_option('woocommerce_servientrega_shipping_settings', $wc_settings);
 
     $success_message = '<div class="notice notice-success"><p>' . esc_html__('Configuración guardada.', 'servientrega-custom-rules') . '</p></div>';
@@ -26,6 +50,8 @@ $enable_fixed_cost = $wc_settings['servientrega_custom_enable_fixed_cost'] ?? 'n
 $fixed_cost_value = $wc_settings['servientrega_custom_fixed_cost_value'] ?? '';
 $enable_free_shipping = $wc_settings['servientrega_custom_enable_free_shipping'] ?? 'no';
 $free_shipping_threshold = $wc_settings['servientrega_custom_free_shipping_threshold'] ?? '';
+$free_shipping_start_date = $wc_settings['servientrega_custom_free_shipping_start_date'] ?? '';
+$free_shipping_end_date = $wc_settings['servientrega_custom_free_shipping_end_date'] ?? '';
 
 $checked_fixed_cost = checked($enable_fixed_cost, 'yes', false);
 $checked_free_shipping = checked($enable_free_shipping, 'yes', false);
@@ -38,6 +64,9 @@ $label_fixed_value = esc_html__('Valor del costo fijo (COP)', 'servientrega-cust
 $label_enable_free = esc_html__('Habilitar envío gratis', 'servientrega-custom-rules');
 $label_free_desc = esc_html__('Ofrecer envío gratis cuando el subtotal alcance el monto mínimo', 'servientrega-custom-rules');
 $label_free_threshold = esc_html__('Monto mínimo para envío gratis (COP)', 'servientrega-custom-rules');
+$label_free_start_date = esc_html__('Fecha de inicio (opcional)', 'servientrega-custom-rules');
+$label_free_end_date = esc_html__('Fecha de fin (opcional)', 'servientrega-custom-rules');
+$label_free_date_desc = esc_html__('Rango de fechas en el que el envío gratis está activo. Deje vacío para que esté siempre activo.', 'servientrega-custom-rules');
 $label_save = esc_attr__('Guardar cambios', 'servientrega-custom-rules');
 
 $htmlCustomRules = <<<HTML
@@ -70,6 +99,19 @@ $success_message
         <th scope="row">$label_free_threshold</th>
         <td>
             <input type="number" name="servientrega_custom_free_shipping_threshold" value="$free_shipping_threshold" min="0" step="1000" style="width: 150px;">
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">$label_free_start_date</th>
+        <td>
+            <input type="date" name="servientrega_custom_free_shipping_start_date" value="$free_shipping_start_date">
+            <br><span class="description">$label_free_date_desc</span>
+        </td>
+    </tr>
+    <tr>
+        <th scope="row">$label_free_end_date</th>
+        <td>
+            <input type="date" name="servientrega_custom_free_shipping_end_date" value="$free_shipping_end_date">
         </td>
     </tr>
 </table>
