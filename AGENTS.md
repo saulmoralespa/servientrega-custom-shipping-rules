@@ -6,6 +6,7 @@ Mini plugin de WordPress / WooCommerce que extiende **Shipping Servientrega WooC
 
 1. **Costo fijo de envío** — Ignorar la cotización de la API de Servientrega y usar un valor definido por el administrador.
 2. **Envío gratis por monto mínimo** — Cuando el subtotal del carrito alcanza un umbral configurado, el envío es $0.
+3. **Envío según productos en oferta** — Si todos los productos del carrito están en oferta, se usa la tarifa completa de la API de Servientrega; si al menos uno es regular, se aplica el costo fijo.
 
 Ambas opciones **evitan la llamada a la API SOAP** de Servientrega, ahorrando latencia (~500ms) y consumo de cuota de API.
 
@@ -37,6 +38,7 @@ Los ajustes se almacenan dentro de la opción `woocommerce_servientrega_shipping
 |-------|------|-------------|
 | `servientrega_custom_enable_fixed_cost` | `yes`/`no` | Habilitar costo fijo |
 | `servientrega_custom_fixed_cost_value` | `float` | Valor del costo fijo en COP |
+| `servientrega_custom_enable_sale_rule` | `yes`/`no` | Habilitar regla según productos en oferta |
 | `servientrega_custom_enable_free_shipping` | `yes`/`no` | Habilitar envío gratis |
 | `servientrega_custom_free_shipping_threshold` | `float` | Monto mínimo para envío gratis en COP |
 | `servientrega_custom_free_shipping_start_date` | `string` (`Y-m-d`) | Fecha de inicio del rango de envío gratis (vacío = sin límite inicial) |
@@ -80,14 +82,20 @@ Filtro de cortocircuito del plugin principal. Se dispara **antes** de la llamada
 1. SI envío gratis habilitado Y fecha actual dentro del rango (si hay fechas configuradas) Y subtotal >= threshold
    → Retornar ValorTotal = 0
 
-2. SI costo fijo habilitado Y valor > 0
+2. SI regla de ofertas habilitada Y costo fijo habilitado Y valor > 0
+    SI hay al menos un producto regular
+       → Retornar ValorTotal = fixed_cost_value
+    SINO (todos en oferta)
+       → Retornar null (API de Servientrega calcula)
+
+3. SI costo fijo habilitado Y valor > 0
    → Retornar ValorTotal = fixed_cost_value
 
-3. SI ninguna regla aplica
+4. SI ninguna regla aplica
    → Retornar null (API de Servientrega calcula)
 ```
 
-**Nota:** El envío gratis siempre tiene prioridad sobre el costo fijo.
+**Nota:** El envío gratis siempre tiene prioridad sobre las demás reglas. La regla de ofertas requiere que el costo fijo esté habilitado y reutiliza el mismo valor.
 
 **Rango de fechas:** Si `servientrega_custom_free_shipping_start_date` y/o `servientrega_custom_free_shipping_end_date` están vacíos, ese límite no aplica. La comparación es inclusiva y usa la zona horaria de WordPress (`wp_date('Y-m-d')`).
 
@@ -102,6 +110,7 @@ Filtro de cortocircuito del plugin principal. Se dispara **antes** de la llamada
 | `servientrega_custom_rules_tab_file()` | Retorna ruta del archivo de la tab |
 | `servientrega_custom_rules_is_free_shipping_date_active()` | Verifica si la fecha actual está dentro del rango configurado |
 | `servientrega_custom_rules_validate_date()` | Valida formato `Y-m-d` al guardar (en `includes/admin/custom_rules.php`) |
+| `servientrega_custom_rules_has_regular_product()` | Verifica si hay al menos un producto no en oferta en el carrito |
 | `servientrega_custom_rules_calculate()` | Lógica del filtro de cortocircuito |
 
 ## Convenciones de código

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Servientrega Custom Shipping Rules
  * Description: Define costo fijo de envío y reglas de envío gratis para Servientrega WooCommerce
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Saúl Morales Pacheco
  * Author URI: https://saulmoralespa.com
  * License: GNU General Public License v3.0
@@ -20,7 +20,7 @@ if (!defined('ABSPATH')) {
 }
 
 if (!defined('SERVIENTREGA_CUSTOM_RULES_VERSION')) {
-    define('SERVIENTREGA_CUSTOM_RULES_VERSION', '1.0.1');
+    define('SERVIENTREGA_CUSTOM_RULES_VERSION', '1.0.2');
 }
 
 if (!defined('SERVIENTREGA_CUSTOM_RULES_PATH')) {
@@ -130,6 +130,31 @@ function servientrega_custom_rules_is_free_shipping_date_active(string $start_da
 }
 
 /**
+ * Verifica si el carrito contiene al menos un producto regular.
+ * Si todos los productos están en oferta, retorna false.
+ * Si no hay productos o no se puede obtener el carrito, retorna true (comportamiento seguro regular).
+ */
+function servientrega_custom_rules_has_regular_product(): bool
+{
+    if (!WC()->cart) {
+        return true;
+    }
+
+    foreach (WC()->cart->get_cart() as $item) {
+        $product = $item['data'] ?? null;
+        if (!$product instanceof WC_Product) {
+            continue;
+        }
+
+        if (!$product->is_on_sale()) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
  * Lógica principal: determina si aplicar costo fijo o envío gratis
  *
  * @param mixed $pre_response Respuesta previa (null por defecto)
@@ -149,6 +174,7 @@ function servientrega_custom_rules_calculate($pre_response, array $params, array
     $free_shipping_end_date   = $wc_settings['servientrega_custom_free_shipping_end_date'] ?? '';
     $enable_fixed_cost       = ($wc_settings['servientrega_custom_enable_fixed_cost'] ?? 'no') === 'yes';
     $fixed_cost_value        = (float) ($wc_settings['servientrega_custom_fixed_cost_value'] ?? 0);
+    $enable_sale_rule        = ($wc_settings['servientrega_custom_enable_sale_rule'] ?? 'no') === 'yes';
 
     // Obtener subtotal del carrito
     $cart_subtotal = 0;
@@ -162,7 +188,17 @@ function servientrega_custom_rules_calculate($pre_response, array $params, array
         return (object) ['ValorTotal' => 0];
     }
 
-    // Regla 2: Costo fijo
+    // Regla 2: Separación entre productos regulares y productos en oferta
+    if ($enable_sale_rule && $enable_fixed_cost && $fixed_cost_value > 0) {
+        if (servientrega_custom_rules_has_regular_product()) {
+            return (object) ['ValorTotal' => $fixed_cost_value];
+        }
+
+        // Todos los productos están en oferta: dejar que la API retorne la tarifa full
+        return null;
+    }
+
+    // Regla 3: Costo fijo global
     if ($enable_fixed_cost && $fixed_cost_value > 0) {
         return (object) ['ValorTotal' => $fixed_cost_value];
     }
